@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tarea mano 2 - Línea entre índices</title>
+
+  <!-- CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/p5@2.3.2/lib/p5.js"></script>
+  <script src="https://unpkg.com/ml5@1/dist/ml5.min.js"></script>
+</head>
+<body>
+  <!-- 
+  Diseñe una aplicación utilizando ML5, que trace una línea entre sus dedos índice
+  y se renderice en tiempo real siempre que detecte ambas manos
+  -->
+
+  <script>
+    //Paso 1 - Objetos
+    let handPose    //Modelo ML5
+    let video       //Cámara
+    let hands = []  //Manos detectadas
+
+    //Paso 2 - Configuración
+    async function setup(){
+      handPose = await ml5.handPose()
+
+      createCanvas(640, 480)
+
+      video = createCapture(VIDEO)
+      video.size(640, 480)
+      video.hide()
+
+      handPose.detectStart(video, gotHands)
+    }
+
+    //Paso 3 - Render
+    function draw(){
+      image(video, 0, 0, width, height)
+
+      //La línea solo se dibuja cuando detecta AMBAS manos
+      if (hands.length >= 2){
+        let indice1 = hands[0].index_finger_tip
+        let indice2 = hands[1].index_finger_tip
+
+        //Línea entre los dos índices
+        stroke(0, 255, 0)
+        strokeWeight(4)
+        line(indice1.x, indice1.y, indice2.x, indice2.y)
+
+        //Puntos en las puntas de los dedos
+        fill(255, 0, 0)
+        noStroke()
+        circle(indice1.x, indice1.y, 16)
+        circle(indice2.x, indice2.y, 16)
+      }
+    }
+
+    //Paso 4 - Resultados
+    function gotHands(results){
+      hands = results
+    }
+  </script>
+</body>
+</html>

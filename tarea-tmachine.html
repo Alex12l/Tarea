@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Teachable Machine - Cartuchera, Lápiz y Celular</title>
+
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; font-family: Arial, Helvetica, sans-serif; }
+
+    body {
+      background: #e8eaed;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+
+    .tarjeta {
+      background: #fff;
+      border-radius: 16px;
+      box-shadow: 0 4px 16px rgba(0,0,0,.15);
+      padding: 24px;
+      width: 100%;
+      max-width: 460px;
+    }
+
+    h2 { color: #1a73e8; margin-bottom: 4px; }
+    .subtitulo { color: #777; font-size: 14px; margin-bottom: 16px; }
+
+    #camara canvas {
+      width: 100% !important;
+      height: auto !important;
+      border-radius: 12px;
+      background: #000;
+    }
+
+    #estado { margin: 12px 0; font-size: 14px; color: #1a73e8; text-align: center; }
+
+    #btnDecir {
+      display: block;
+      margin: 0 auto 16px;
+      padding: 10px 22px;
+      border: none;
+      border-radius: 24px;
+      background: #1a73e8;
+      color: #fff;
+      font-size: 15px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    #btnDecir:hover { background: #1558b0; }
+
+    h3 { color: #555; margin: 8px 0 12px; font-size: 16px; }
+
+    .fila { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+    .nombre { width: 90px; font-weight: bold; font-size: 14px; }
+
+    .barra {
+      flex: 1;
+      height: 28px;
+      border-radius: 8px;
+      overflow: hidden;
+      position: relative;
+    }
+    .relleno {
+      height: 100%;
+      width: 0%;
+      transition: width .2s ease;   /* Que la barra crezca suavemente */
+    }
+    .porcentaje {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      padding-left: 10px;
+      font-size: 13px;
+      font-weight: bold;
+      color: #333;
+    }
+  </style>
+</head>
+<body>
+  <div class="tarjeta">
+    <h2>Teachable Machine</h2>
+    <p class="subtitulo">Muestra una cartuchera, un lápiz o un celular a la cámara</p>
+
+    <div id="camara"><!-- Renderizar el canvas --></div>
+    <p id="estado">Cargando modelo...</p>
+    <button id="btnDecir">🔊 ¿Qué es?</button>
+
+    <h3>Salida</h3>
+    <div id="salida"><!-- Se crean las barras --></div>
+  </div>
+
+  <!-- P5 librería para gestión multimedia con JS -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.1.9/p5.min.js"></script>
+  <!-- ML5 (versión compatible con modelos de Teachable Machine) -->
+  <script src="https://unpkg.com/ml5@0.5.0/dist/ml5.min.js"></script>
+
+  <script>
+    //Paso 1 - Objetos
+    let classifier              //Modelo ML5
+    let imageModelURL = "./iamodels/"   //Carpeta con el modelo exportado de Teachable Machine
+    let video                   //Cámara
+    let flippedVideo            //Cámara en modo espejo
+    let barras = {}             //Barras creadas (una por clase)
+    let ultimo = ""             //Objeto con mayor confianza en este momento
+
+    //Colores: uno por cada clase (cartuchera, lápiz, celular)
+    const colores = ["#ffd9b3", "#ffc2cc", "#bfe3ff"]
+    const salida = document.querySelector("#salida")
+    const estado = document.querySelector("#estado")
+    const btnDecir = document.querySelector("#btnDecir")
+
+    //Paso 2 - Cargar el modelo
+    function preload(){
+      classifier = ml5.imageClassifier(imageModelURL + "model.json", () => {
+        estado.textContent = "Modelo listo"
+      })
+    }
+
+    //Paso 3 - Configuración
+    function setup(){
+      let lienzo = createCanvas(400, 300)
+      lienzo.parent("camara")
+
+      video = createCapture(VIDEO)
+      video.size(400, 300)
+      video.hide()
+
+      flippedVideo = ml5.flipImage(video)
+      classifyVideo()
+    }
+
+    //Paso 4 - Render del video
+    function draw(){
+      background(0)
+      image(flippedVideo, 0, 0)
+    }
+
+    //Paso 5 - Clasificar el frame actual (se repite en bucle)
+    function classifyVideo(){
+      flippedVideo = ml5.flipImage(video)
+      classifier.classify(flippedVideo, gotResult)
+      flippedVideo.remove()
+    }
+
+    //Paso 6 - Resultados: results = [{label, confidence}, ...] de TODAS las clases
+    function gotResult(error, results){
+      if (error){
+        console.error(error)
+        estado.textContent = "Error: revisa la cámara o el modelo"
+        return
+      }
+
+      estado.textContent = ""
+
+      //results[0] es la clase con mayor confianza
+      ultimo = results[0].label
+
+      for (let i = 0; i < results.length; i++){
+        let { label, confidence } = results[i]
+
+        //La primera vez, creamos la barra de cada clase
+        if (!barras[label]) crearBarra(label, Object.keys(barras).length)
+
+        //Hacemos crecer el relleno según la confianza (0 - 1 => 0% - 100%)
+        let porcentaje = Math.round(confidence * 100)
+        barras[label].relleno.style.width = porcentaje + "%"
+        barras[label].texto.textContent = porcentaje + "%"
+      }
+
+      classifyVideo()
+    }
+
+    //Botón: dice directamente el nombre del objeto (ej. "mouse", "celular")
+    btnDecir.addEventListener("click", () => {
+      if (!ultimo) return
+      speechSynthesis.cancel()
+      let voz = new SpeechSynthesisUtterance(ultimo.toLowerCase())
+      voz.lang = "es-ES"
+      speechSynthesis.speak(voz)
+    })
+
+    //Crea en el HTML: nombre + barra + relleno + porcentaje
+    function crearBarra(label, indice){
+      let color = colores[indice % colores.length]
+
+      let fila = document.createElement("div")
+      fila.className = "fila"
+      fila.innerHTML = `
+        <span class="nombre">${label}</span>
+        <div class="barra" style="background:${color}40">
+          <div class="relleno" style="background:${color}"></div>
+          <span class="porcentaje">0%</span>
+        </div>
+      `
+      salida.appendChild(fila)
+
+      barras[label] = {
+        relleno: fila.querySelector(".relleno"),
+        texto: fila.querySelector(".porcentaje")
+      }
+    }
+  </script>
+</body>
+</html>

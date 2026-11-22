@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tarea mano 1 - Círculo en el índice</title>
+
+  <!-- CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/p5@2.3.2/lib/p5.js"></script>
+  <script src="https://unpkg.com/ml5@1/dist/ml5.min.js"></script>
+</head>
+<body>
+  <!-- 
+  Utilizando la librería ML5, y la cámara como fuente de datos
+  diseñe una aplicación que renderice un círculo de un tamaño mediano
+  sobre su dedo índice y lo siga en tiempo real
+  -->
+
+  <script>
+    //Paso 1 - Objetos
+    let handPose    
+    let video       
+    let hands = []  
+
+    //Paso 2 - Configuración
+    async function setup(){
+      handPose = await ml5.handPose()
+
+      createCanvas(640, 480)
+
+      video = createCapture(VIDEO)
+      video.size(640, 480)
+      video.hide()
+
+      
+      handPose.detectStart(video, gotHands)
+    }
+
+    //Paso 3 - Render
+    function draw(){
+      image(video, 0, 0, width, height)
+
+      
+      for (let i = 0; i < hands.length; i++){
+        //Punta del dedo índice
+        let finger = hands[i].index_finger_tip
+
+       
+        fill(255, 0, 0, 150)
+        stroke(255)
+        strokeWeight(3)
+        circle(finger.x, finger.y, 60)
+      }
+    }
+
+    //Paso 4 - Resultados
+    function gotHands(results){
+      hands = results
+    }
+  </script>
+</body>
+</html>

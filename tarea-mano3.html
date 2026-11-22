@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tarea mano 3 - Círculo con 3 colores</title>
+
+  <!-- CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/p5@2.3.2/lib/p5.js"></script>
+  <script src="https://unpkg.com/ml5@1/dist/ml5.min.js"></script>
+</head>
+<body>
+  <!-- 
+  Diseñe una aplicación en ML5 que dibuje un círculo entre su dedo
+  índice y el pulgar, este tendrá diferentes colores en función de
+  la distancia entre ambos. Utilizar 3 colores
+  -->
+
+  <script>
+    //Paso 1 - Objetos
+    let handPose    //Modelo ML5
+    let video       //Cámara
+    let hands = []  //Manos detectadas
+
+    //Paso 2 - Configuración
+    async function setup(){
+      handPose = await ml5.handPose()
+
+      createCanvas(640, 480)
+
+      video = createCapture(VIDEO)
+      video.size(640, 480)
+      video.hide()
+
+      handPose.detectStart(video, gotHands)
+    }
+
+    //Paso 3 - Render
+    function draw(){
+      image(video, 0, 0, width, height)
+
+      if (hands.length > 0){
+        let finger = hands[0].index_finger_tip
+        let thumb = hands[0].thumb_tip
+
+        //Centro entre índice y pulgar
+        let centerX = (finger.x + thumb.x) / 2
+        let centerY = (finger.y + thumb.y) / 2
+        let distancia = dist(finger.x, finger.y, thumb.x, thumb.y)
+
+        //3 colores según la distancia
+        if (distancia < 50){
+          fill(255, 0, 0, 200)      //Rojo: cerca
+        } else if (distancia < 120){
+          fill(255, 220, 0, 200)    //Amarillo: media
+        } else {
+          fill(0, 200, 0, 200)      //Verde: lejos
+        }
+
+        stroke(255)
+        strokeWeight(2)
+        circle(centerX, centerY, distancia)
+      }
+    }
+
+    //Paso 4 - Resultados
+    function gotHands(results){
+      hands = results
+    }
+  </script>
+</body>
+</html>
